@@ -1,0 +1,14 @@
+
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.env.*
+.aws/
+data/
+output/
+*.db
+*.sqlite
+*.sqlite3
+.pytest_cache/
