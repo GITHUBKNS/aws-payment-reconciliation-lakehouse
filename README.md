@@ -10,21 +10,6 @@ A hands-on portfolio project: versioned change events from a synthetic retailer'
 ![Payment reconciliation architecture](docs/architecture.svg)
 
 
-```mermaid
-flowchart TD
-    P[Payment ledger change files] --> B[Immutable batch ID and SHA256]
-    S[Settlement change files] --> B
-    B --> R[S3 raw files]
-    B --> V[Python validation and deduplication]
-    V --> Q[Quarantine JSON]
-    V --> T[S3 validated CSV / Glue external tables]
-    T --> M[Athena SQL version-aware MERGE]
-    M --> I[Iceberg payment and settlement state]
-    I --> G[SQL reconciliation view and exception totals]
-    M --> A[Run audit JSON and Athena query statistics]
-    G --> A
-```
-
 Events are **simulated CDC exports**, not a live database log capture. Each event contains a payment ID, monotonically increasing source version, operation U (upsert) or D (delete/tombstone), and an integer amount in cents. Each settlement is a single net settlement per payment in this simplified model. Payment and settlement versions are independently maintained. Refunds are represented as a new net amount, not separate ledger entries. The pipeline never uses floating-point money. A delete retains the latest version to prevent a delayed older event from resurrecting a record.
 
 ## Run locally (Python 3.10+; no dependencies)
@@ -70,10 +55,6 @@ The CI workflow does not require AWS credentials or provision cloud resources.
 
 [View local pipeline reference results](docs/local_results.txt)
 
-### Automated Testing with GitHub Actions
-
-![GitHub Actions Tests](docs/screenshots/09_github_actions_pass.png)
-
 ## AWS implementation
 
 Follow [AWS setup and deployment](docs/aws_setup.md). The runner uploads original and validated data, creates Iceberg tables and staging metadata, executes SQL MERGE, compares the cloud results and change counts against the local reference, and writes a query-level audit report. AWS Glue is used as a catalog only, not as a Spark processing service. The AWS path requires a real AWS account. The recorded deployment in us-east-1 succeeded under a dedicated IAM user using a private SSE-S3 bucket and an Athena SQL workgroup with a 100 MB per-query scan limit. See [measured execution results](docs/results.md), [sanitized query audit](docs/aws_execution_audit.json), and [verification SQL](sql/verify.sql). The runner source is preserved as tested; its original help text predates the live validation.
@@ -93,6 +74,26 @@ Follow [AWS setup and deployment](docs/aws_setup.md). The runner uploads origina
 | Net reconciliation variance | $997.35 |
 
 The two final summaries matched the SQLite reference. An independent Athena query returned the same reconciliation totals; Iceberg version travel retrieved payment P000201 before and after its logical deletion. These are small-fixture observations, not production throughput benchmarks. See [results and cost assumptions](docs/results.md).
+
+## Live AWS Execution Evidence
+
+### Successful AWS Deployment
+
+![AWS Deployment](docs/screenshots/08_aws_deployment_pass.png)
+
+### Financial Reconciliation
+
+![Athena Reconciliation](docs/screenshots/05_athena_reconciliation.png)
+
+### Apache Iceberg Snapshot History
+
+![Iceberg Snapshots](docs/screenshots/06_iceberg_snapshot_history.png)
+
+### Iceberg Time Travel and Tombstone Verification
+
+![Iceberg Time Travel](docs/screenshots/07_iceberg_time_travel.png)
+
+[View all execution evidence](docs/screenshots/)
 
 ## Important engineering decisions
 
