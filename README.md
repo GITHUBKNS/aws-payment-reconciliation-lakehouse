@@ -1,5 +1,8 @@
 # Payment & Settlement Reconciliation Lakehouse
 
+[![Python Pipeline Tests](https://github.com/GITHUBKNS/aws-payment-reconciliation-lakehouse/actions/workflows/tests.yml/badge.svg)](https://github.com/GITHUBKNS/aws-payment-reconciliation-lakehouse/actions/workflows/tests.yml)
+
+
 A hands-on portfolio project: versioned change events from a synthetic retailer's payment ledger and settlement processor, reconciled with SQL. The local reference implementation uses Python and SQLite; the cloud deployment uses Amazon S3, Athena engine v3, the Glue Data Catalog and Apache Iceberg v2. **Status: Successfully deployed and validated on AWS on November 24, 2026.** Seven local correctness tests passed on Windows and AWS CloudShell; all 31 Athena statements in the deployment audit succeeded. No real card data, PHI, PII or employer information is used.
 
 ## Architecture
@@ -45,6 +48,9 @@ On Windows use `py` instead of `python` if necessary. The runner generates the f
 20,247 raw rows across two distinct batches; 240 changed keys in batch2; zero on replay. Two malformed records in batch2 are quarantined; exact duplicates and superseded versions are counted separately. These are deterministic synthetic correctness tests, not a performance benchmark. A matched transaction count is not a count of all historical events.
 
 Seven tests cover baseline, incremental processing, replay, stale event protection, rollback/recovery, same-version conflicts and batch immutability (some scenarios share a test). A GitHub Actions workflow is configured to run the local suite on pushes and pull requests; a hosted CI run still needs to be verified after publication. [Starter fixture reference output](docs/local_results.txt).
+### Automated Testing with GitHub Actions
+
+![GitHub Actions Tests](docs/screenshots/09_github_actions_pass.png)
 
 ## AWS implementation
 
