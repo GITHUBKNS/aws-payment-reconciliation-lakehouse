@@ -47,7 +47,29 @@ On Windows use `py` instead of `python` if necessary. The runner generates the f
 
 20,247 raw rows across two distinct batches; 240 changed keys in batch2; zero on replay. Two malformed records in batch2 are quarantined; exact duplicates and superseded versions are counted separately. These are deterministic synthetic correctness tests, not a performance benchmark. A matched transaction count is not a count of all historical events.
 
-Seven tests cover baseline, incremental processing, replay, stale event protection, rollback/recovery, same-version conflicts and batch immutability (some scenarios share a test). A GitHub Actions workflow is configured to run the local suite on pushes and pull requests; a hosted CI run still needs to be verified after publication. [Starter fixture reference output](docs/local_results.txt).
+
+## Automated Testing and Continuous Integration
+
+The project includes seven automated unit tests covering baseline processing, incremental updates, idempotent replay, batch immutability, conflicting same-version records, late-arriving event protection, and transaction rollback and recovery.
+
+All seven tests passed successfully across three execution environments:
+
+- Windows — local development and validation
+- AWS CloudShell — Linux-based validation
+- GitHub Actions — automated continuous integration
+
+The GitHub Actions workflow runs the test suite on pushes and pull requests to the `main` branch and also supports manual execution. The verified hosted CI run completed all seven tests in 0.962 seconds with zero failures.
+
+The CI workflow does not require AWS credentials or provision cloud resources.
+
+### GitHub Actions Execution Evidence
+
+![GitHub Actions Tests](docs/screenshots/09_github_actions_pass.png)
+
+[View GitHub Actions workflow runs](https://github.com/GITHUBKNS/aws-payment-reconciliation-lakehouse/actions)
+
+[View local pipeline reference results](docs/local_results.txt)
+
 ### Automated Testing with GitHub Actions
 
 ![GitHub Actions Tests](docs/screenshots/09_github_actions_pass.png)
