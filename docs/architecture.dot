@@ -1,0 +1,19 @@
+digraph G {
+ graph [rankdir=TB,bgcolor="white",pad=0.3,nodesep=0.35,ranksep=0.55,fontname="DejaVu Sans",label="Payment & Settlement Reconciliation Lakehouse",labelloc=t,fontsize=23,fontcolor="#102a43"];
+ node [shape=box,style="rounded,filled",fontname="DejaVu Sans",fontsize=12,margin="0.18,0.11",color="#829ab1",fillcolor="#f0f4f8",fontcolor="#102a43"];
+ edge [color="#627d98",arrowsize=0.7,fontname="DejaVu Sans",fontsize=10];
+ pay [label="Synthetic payment events\nCSV | version | U/D"];
+ settle [label="Synthetic settlement events\nCSV | version | U/D"];
+ ingest [label="Python / Boto3 orchestrator\nSHA-256 manifest • validate • deduplicate",fillcolor="#d9eaf7"];
+ raw [label="S3 raw files\nBatch manifests",fillcolor="#e5f4e8"];
+ quarantine [label="S3 quarantine\nInvalid rows (JSON)",fillcolor="#fff0d7"];
+ stage [label="S3 validated CSV\nGlue external tables",fillcolor="#e5f4e8"];
+ merge [label="Athena engine v3\nConflict checks • ROW_NUMBER • version-aware MERGE",fillcolor="#d9eaf7"];
+ iceberg [label="Apache Iceberg v2 / Parquet on S3\nPayment + settlement state • snapshots • tombstones",fillcolor="#e5f4e8"];
+ gold [label="SQL reconciliation view\nMatched • mismatch • missing • orphan",fillcolor="#d9eaf7"];
+ local [label="Python + SQLite\nLocal reference and 7 correctness tests"];
+ audit [label="Run audit JSON\nCloud/local parity • replay metrics • query statistics",fillcolor="#e8e3f6"];
+ security [label="IAM + MFA • private SSE-S3 bucket\nAthena workgroup • 100 MB scan limit • budget alert",shape=box,style="rounded,dashed",fillcolor="white"];
+ {rank=same;pay;settle} {rank=same;raw;stage;quarantine} {rank=same;gold;local}
+ pay -> ingest; settle -> ingest; ingest -> raw; ingest -> stage; ingest -> quarantine; stage -> merge; merge -> iceberg; iceberg -> gold; gold -> audit; local -> audit; merge -> audit [style=dashed]; security -> merge [style=dashed,arrowhead=none];
+}

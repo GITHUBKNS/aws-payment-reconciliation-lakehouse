@@ -1,0 +1,363 @@
+{
+  "status": "SUCCEEDED",
+  "runs": [
+    {
+      "batch": "batch1",
+      "metrics": {
+        "payments": {
+          "raw": 10000,
+          "invalid": 0,
+          "duplicates": 0,
+          "superseded_in_batch": 0,
+          "candidate_keys": 10000,
+          "changed_keys": 10000
+        },
+        "settlements": {
+          "raw": 10000,
+          "invalid": 0,
+          "duplicates": 0,
+          "superseded_in_batch": 0,
+          "candidate_keys": 10000,
+          "changed_keys": 10000
+        }
+      },
+      "summary": [
+        {
+          "status": "AMOUNT_MISMATCH",
+          "records": 10,
+          "expected_cents": 15735,
+          "settled_cents": 16735,
+          "variance_cents": 1000
+        },
+        {
+          "status": "MATCHED",
+          "records": 9980,
+          "expected_cents": 246930230,
+          "settled_cents": 246930230,
+          "variance_cents": 0
+        },
+        {
+          "status": "MISSING_SETTLEMENT",
+          "records": 10,
+          "expected_cents": 12035,
+          "settled_cents": 0,
+          "variance_cents": -12035
+        },
+        {
+          "status": "ORPHAN_SETTLEMENT",
+          "records": 10,
+          "expected_cents": 0,
+          "settled_cents": 5000,
+          "variance_cents": 5000
+        }
+      ]
+    },
+    {
+      "batch": "batch2",
+      "metrics": {
+        "payments": {
+          "raw": 124,
+          "invalid": 1,
+          "duplicates": 1,
+          "superseded_in_batch": 2,
+          "candidate_keys": 120,
+          "changed_keys": 120
+        },
+        "settlements": {
+          "raw": 123,
+          "invalid": 1,
+          "duplicates": 1,
+          "superseded_in_batch": 1,
+          "candidate_keys": 120,
+          "changed_keys": 120
+        }
+      },
+      "summary": [
+        {
+          "status": "AMOUNT_MISMATCH",
+          "records": 10,
+          "expected_cents": 77335,
+          "settled_cents": 82335,
+          "variance_cents": 5000
+        },
+        {
+          "status": "MATCHED",
+          "records": 9970,
+          "expected_cents": 246654895,
+          "settled_cents": 246654895,
+          "variance_cents": 0
+        },
+        {
+          "status": "ORPHAN_SETTLEMENT",
+          "records": 20,
+          "expected_cents": 0,
+          "settled_cents": 94735,
+          "variance_cents": 94735
+        }
+      ]
+    },
+    {
+      "batch": "batch2",
+      "metrics": {
+        "payments": {
+          "raw": 124,
+          "invalid": 1,
+          "duplicates": 1,
+          "superseded_in_batch": 2,
+          "candidate_keys": 120,
+          "changed_keys": 0
+        },
+        "settlements": {
+          "raw": 123,
+          "invalid": 1,
+          "duplicates": 1,
+          "superseded_in_batch": 1,
+          "candidate_keys": 120,
+          "changed_keys": 0
+        }
+      },
+      "summary": [
+        {
+          "status": "AMOUNT_MISMATCH",
+          "records": 10,
+          "expected_cents": 77335,
+          "settled_cents": 82335,
+          "variance_cents": 5000
+        },
+        {
+          "status": "MATCHED",
+          "records": 9970,
+          "expected_cents": 246654895,
+          "settled_cents": 246654895,
+          "variance_cents": 0
+        },
+        {
+          "status": "ORPHAN_SETTLEMENT",
+          "records": 20,
+          "expected_cents": 0,
+          "settled_cents": 94735,
+          "variance_cents": 94735
+        }
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "query_number": 1,
+      "status": "SUCCEEDED",
+      "sql": "CREATE DATABASE IF NOT EXISTS payment_demo",
+      "bytes_scanned": 0,
+      "engine_ms": 279
+    },
+    {
+      "query_number": 2,
+      "status": "SUCCEEDED",
+      "sql": "CREATE TABLE IF NOT EXISTS payments (payment_id string, version bigint, operation string, amount_cents bigint) LOCATION 's3://YOUR_BUCKET/payment-demo/iceberg/payments/' TBLPROPERTIES ('table_type'='ICEBERG','format'='parquet')",
+      "bytes_scanned": 0,
+      "engine_ms": 452
+    },
+    {
+      "query_number": 3,
+      "status": "SUCCEEDED",
+      "sql": "CREATE TABLE IF NOT EXISTS settlements (payment_id string, version bigint, operation string, amount_cents bigint) LOCATION 's3://YOUR_BUCKET/payment-demo/iceberg/settlements/' TBLPROPERTIES ('table_type'='ICEBERG','format'='parquet')",
+      "bytes_scanned": 0,
+      "engine_ms": 341
+    },
+    {
+      "query_number": 4,
+      "status": "SUCCEEDED",
+      "sql": "CREATE OR REPLACE VIEW reconciliation AS WITH keys AS (SELECT payment_id FROM payments WHERE operation='U'\n UNION SELECT payment_id FROM settlements WHERE operation='U'),\n compared AS (SELECT k.payment_id, p.amount_cents AS expected_cents,\n s.amount_cents AS settled_cents FROM keys k\n LEFT JOIN payments p ON k.payment_id=p.payment_id AND p.operation='U'\n LEFT JOIN settlements s ON k.payment_id=s.payment_id AND s.operation='U')\n SELECT payment_id, expected_cents, settled_cents,\n CASE WHEN expected_cents IS NULL THEN 'ORPHAN_SETTLEMENT'\n WHEN settled_cents IS NULL THEN 'MISSING_SETTLEMENT'\n WHEN expected_cents<>settled_cents THEN 'AMOUNT_MISMATCH'\n ELSE 'MATCHED' END AS status,\n COALESCE(settled_cents,0)-COALESCE(expected_cents,0) AS variance_cents\n FROM compared",
+      "bytes_scanned": 0,
+      "engine_ms": 529
+    },
+    {
+      "query_number": 5,
+      "status": "SUCCEEDED",
+      "sql": "CREATE EXTERNAL TABLE IF NOT EXISTS stage_batch1_payments (payment_id string, version bigint, operation string, amount_cents bigint) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE LOCATION 's3://YOUR_BUCKET/payment-demo/staged/batch1/payments/' TBLPROPERTIES ('skip.header.line.count'='1')",
+      "bytes_scanned": 0,
+      "engine_ms": 381
+    },
+    {
+      "query_number": 6,
+      "status": "SUCCEEDED",
+      "sql": "CREATE EXTERNAL TABLE IF NOT EXISTS stage_batch1_settlements (payment_id string, version bigint, operation string, amount_cents bigint) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE LOCATION 's3://YOUR_BUCKET/payment-demo/staged/batch1/settlements/' TBLPROPERTIES ('skip.header.line.count'='1')",
+      "bytes_scanned": 0,
+      "engine_ms": 302
+    },
+    {
+      "query_number": 7,
+      "status": "SUCCEEDED",
+      "sql": "SELECT count(*) FROM stage_batch1_payments s JOIN payments t ON s.payment_id=t.payment_id AND s.version=t.version WHERE s.operation<>t.operation OR s.amount_cents<>t.amount_cents",
+      "bytes_scanned": 0,
+      "engine_ms": 857
+    },
+    {
+      "query_number": 8,
+      "status": "SUCCEEDED",
+      "sql": "SELECT count(*) FROM stage_batch1_settlements s JOIN settlements t ON s.payment_id=t.payment_id AND s.version=t.version WHERE s.operation<>t.operation OR s.amount_cents<>t.amount_cents",
+      "bytes_scanned": 0,
+      "engine_ms": 496
+    },
+    {
+      "query_number": 9,
+      "status": "SUCCEEDED",
+      "sql": "SELECT count(*) FROM (SELECT payment_id,version,operation,amount_cents FROM (SELECT *, row_number() OVER (PARTITION BY payment_id ORDER BY version DESC) AS rn FROM stage_batch1_payments) WHERE rn=1) s LEFT JOIN payments t ON s.payment_id=t.payment_id WHERE t.payment_id IS NULL OR s.version>t.version",
+      "bytes_scanned": 188097,
+      "engine_ms": 550
+    },
+    {
+      "query_number": 10,
+      "status": "SUCCEEDED",
+      "sql": "MERGE INTO payments t USING (SELECT payment_id,version,operation,amount_cents FROM (SELECT *, row_number() OVER (PARTITION BY payment_id ORDER BY version DESC) AS rn FROM stage_batch1_payments) WHERE rn=1) s ON t.payment_id=s.payment_id\n            WHEN MATCHED AND s.version>t.version THEN UPDATE SET version=s.version, operation=s.operation, amount_cents=s.amount_cents\n            WHEN NOT MATCHED THEN INSERT (payment_id,version,operation,amount_cents) VALUES (s.payment_id,s.version,s.operation,s.amount_cents)",
+      "bytes_scanned": 188097,
+      "engine_ms": 1976
+    },
+    {
+      "query_number": 11,
+      "status": "SUCCEEDED",
+      "sql": "SELECT count(*) FROM (SELECT payment_id,version,operation,amount_cents FROM (SELECT *, row_number() OVER (PARTITION BY payment_id ORDER BY version DESC) AS rn FROM stage_batch1_settlements) WHERE rn=1) s LEFT JOIN settlements t ON s.payment_id=t.payment_id WHERE t.payment_id IS NULL OR s.version>t.version",
+      "bytes_scanned": 188087,
+      "engine_ms": 701
+    },
+    {
+      "query_number": 12,
+      "status": "SUCCEEDED",
+      "sql": "MERGE INTO settlements t USING (SELECT payment_id,version,operation,amount_cents FROM (SELECT *, row_number() OVER (PARTITION BY payment_id ORDER BY version DESC) AS rn FROM stage_batch1_settlements) WHERE rn=1) s ON t.payment_id=s.payment_id\n            WHEN MATCHED AND s.version>t.version THEN UPDATE SET version=s.version, operation=s.operation, amount_cents=s.amount_cents\n            WHEN NOT MATCHED THEN INSERT (payment_id,version,operation,amount_cents) VALUES (s.payment_id,s.version,s.operation,s.amount_cents)",
+      "bytes_scanned": 188087,
+      "engine_ms": 1763
+    },
+    {
+      "query_number": 13,
+      "status": "SUCCEEDED",
+      "sql": "SELECT status, COUNT(*) AS records, SUM(COALESCE(expected_cents,0)) AS expected_cents, SUM(COALESCE(settled_cents,0)) AS settled_cents, SUM(variance_cents) AS variance_cents FROM reconciliation GROUP BY status ORDER BY status",
+      "bytes_scanned": 128727,
+      "engine_ms": 2339
+    },
+    {
+      "query_number": 14,
+      "status": "SUCCEEDED",
+      "sql": "CREATE EXTERNAL TABLE IF NOT EXISTS stage_batch2_payments (payment_id string, version bigint, operation string, amount_cents bigint) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE LOCATION 's3://YOUR_BUCKET/payment-demo/staged/batch2/payments/' TBLPROPERTIES ('skip.header.line.count'='1')",
+      "bytes_scanned": 0,
+      "engine_ms": 294
+    },
+    {
+      "query_number": 15,
+      "status": "SUCCEEDED",
+      "sql": "CREATE EXTERNAL TABLE IF NOT EXISTS stage_batch2_settlements (payment_id string, version bigint, operation string, amount_cents bigint) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE LOCATION 's3://YOUR_BUCKET/payment-demo/staged/batch2/settlements/' TBLPROPERTIES ('skip.header.line.count'='1')",
+      "bytes_scanned": 0,
+      "engine_ms": 303
+    },
+    {
+      "query_number": 16,
+      "status": "SUCCEEDED",
+      "sql": "SELECT count(*) FROM stage_batch2_payments s JOIN payments t ON s.payment_id=t.payment_id AND s.version=t.version WHERE s.operation<>t.operation OR s.amount_cents<>t.amount_cents",
+      "bytes_scanned": 42732,
+      "engine_ms": 1354
+    },
+    {
+      "query_number": 17,
+      "status": "SUCCEEDED",
+      "sql": "SELECT count(*) FROM stage_batch2_settlements s JOIN settlements t ON s.payment_id=t.payment_id AND s.version=t.version WHERE s.operation<>t.operation OR s.amount_cents<>t.amount_cents",
+      "bytes_scanned": 44716,
+      "engine_ms": 816
+    },
+    {
+      "query_number": 18,
+      "status": "SUCCEEDED",
+      "sql": "SELECT count(*) FROM (SELECT payment_id,version,operation,amount_cents FROM (SELECT *, row_number() OVER (PARTITION BY payment_id ORDER BY version DESC) AS rn FROM stage_batch2_payments) WHERE rn=1) s LEFT JOIN payments t ON s.payment_id=t.payment_id WHERE t.payment_id IS NULL OR s.version>t.version",
+      "bytes_scanned": 25058,
+      "engine_ms": 824
+    },
+    {
+      "query_number": 19,
+      "status": "SUCCEEDED",
+      "sql": "MERGE INTO payments t USING (SELECT payment_id,version,operation,amount_cents FROM (SELECT *, row_number() OVER (PARTITION BY payment_id ORDER BY version DESC) AS rn FROM stage_batch2_payments) WHERE rn=1) s ON t.payment_id=s.payment_id\n            WHEN MATCHED AND s.version>t.version THEN UPDATE SET version=s.version, operation=s.operation, amount_cents=s.amount_cents\n            WHEN NOT MATCHED THEN INSERT (payment_id,version,operation,amount_cents) VALUES (s.payment_id,s.version,s.operation,s.amount_cents)",
+      "bytes_scanned": 25058,
+      "engine_ms": 1546
+    },
+    {
+      "query_number": 20,
+      "status": "SUCCEEDED",
+      "sql": "SELECT count(*) FROM (SELECT payment_id,version,operation,amount_cents FROM (SELECT *, row_number() OVER (PARTITION BY payment_id ORDER BY version DESC) AS rn FROM stage_batch2_settlements) WHERE rn=1) s LEFT JOIN settlements t ON s.payment_id=t.payment_id WHERE t.payment_id IS NULL OR s.version>t.version",
+      "bytes_scanned": 25123,
+      "engine_ms": 681
+    },
+    {
+      "query_number": 21,
+      "status": "SUCCEEDED",
+      "sql": "MERGE INTO settlements t USING (SELECT payment_id,version,operation,amount_cents FROM (SELECT *, row_number() OVER (PARTITION BY payment_id ORDER BY version DESC) AS rn FROM stage_batch2_settlements) WHERE rn=1) s ON t.payment_id=s.payment_id\n            WHEN MATCHED AND s.version>t.version THEN UPDATE SET version=s.version, operation=s.operation, amount_cents=s.amount_cents\n            WHEN NOT MATCHED THEN INSERT (payment_id,version,operation,amount_cents) VALUES (s.payment_id,s.version,s.operation,s.amount_cents)",
+      "bytes_scanned": 25123,
+      "engine_ms": 1958
+    },
+    {
+      "query_number": 22,
+      "status": "SUCCEEDED",
+      "sql": "SELECT status, COUNT(*) AS records, SUM(COALESCE(expected_cents,0)) AS expected_cents, SUM(COALESCE(settled_cents,0)) AS settled_cents, SUM(variance_cents) AS variance_cents FROM reconciliation GROUP BY status ORDER BY status",
+      "bytes_scanned": 131058,
+      "engine_ms": 1484
+    },
+    {
+      "query_number": 23,
+      "status": "SUCCEEDED",
+      "sql": "CREATE EXTERNAL TABLE IF NOT EXISTS stage_batch2_payments (payment_id string, version bigint, operation string, amount_cents bigint) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE LOCATION 's3://YOUR_BUCKET/payment-demo/staged/batch2/payments/' TBLPROPERTIES ('skip.header.line.count'='1')",
+      "bytes_scanned": 0,
+      "engine_ms": 253
+    },
+    {
+      "query_number": 24,
+      "status": "SUCCEEDED",
+      "sql": "CREATE EXTERNAL TABLE IF NOT EXISTS stage_batch2_settlements (payment_id string, version bigint, operation string, amount_cents bigint) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE LOCATION 's3://YOUR_BUCKET/payment-demo/staged/batch2/settlements/' TBLPROPERTIES ('skip.header.line.count'='1')",
+      "bytes_scanned": 0,
+      "engine_ms": 248
+    },
+    {
+      "query_number": 25,
+      "status": "SUCCEEDED",
+      "sql": "SELECT count(*) FROM stage_batch2_payments s JOIN payments t ON s.payment_id=t.payment_id AND s.version=t.version WHERE s.operation<>t.operation OR s.amount_cents<>t.amount_cents",
+      "bytes_scanned": 43576,
+      "engine_ms": 1076
+    },
+    {
+      "query_number": 26,
+      "status": "SUCCEEDED",
+      "sql": "SELECT count(*) FROM stage_batch2_settlements s JOIN settlements t ON s.payment_id=t.payment_id AND s.version=t.version WHERE s.operation<>t.operation OR s.amount_cents<>t.amount_cents",
+      "bytes_scanned": 45502,
+      "engine_ms": 935
+    },
+    {
+      "query_number": 27,
+      "status": "SUCCEEDED",
+      "sql": "SELECT count(*) FROM (SELECT payment_id,version,operation,amount_cents FROM (SELECT *, row_number() OVER (PARTITION BY payment_id ORDER BY version DESC) AS rn FROM stage_batch2_payments) WHERE rn=1) s LEFT JOIN payments t ON s.payment_id=t.payment_id WHERE t.payment_id IS NULL OR s.version>t.version",
+      "bytes_scanned": 25391,
+      "engine_ms": 739
+    },
+    {
+      "query_number": 28,
+      "status": "SUCCEEDED",
+      "sql": "MERGE INTO payments t USING (SELECT payment_id,version,operation,amount_cents FROM (SELECT *, row_number() OVER (PARTITION BY payment_id ORDER BY version DESC) AS rn FROM stage_batch2_payments) WHERE rn=1) s ON t.payment_id=s.payment_id\n            WHEN MATCHED AND s.version>t.version THEN UPDATE SET version=s.version, operation=s.operation, amount_cents=s.amount_cents\n            WHEN NOT MATCHED THEN INSERT (payment_id,version,operation,amount_cents) VALUES (s.payment_id,s.version,s.operation,s.amount_cents)",
+      "bytes_scanned": 25391,
+      "engine_ms": 1106
+    },
+    {
+      "query_number": 29,
+      "status": "SUCCEEDED",
+      "sql": "SELECT count(*) FROM (SELECT payment_id,version,operation,amount_cents FROM (SELECT *, row_number() OVER (PARTITION BY payment_id ORDER BY version DESC) AS rn FROM stage_batch2_settlements) WHERE rn=1) s LEFT JOIN settlements t ON s.payment_id=t.payment_id WHERE t.payment_id IS NULL OR s.version>t.version",
+      "bytes_scanned": 25476,
+      "engine_ms": 778
+    },
+    {
+      "query_number": 30,
+      "status": "SUCCEEDED",
+      "sql": "MERGE INTO settlements t USING (SELECT payment_id,version,operation,amount_cents FROM (SELECT *, row_number() OVER (PARTITION BY payment_id ORDER BY version DESC) AS rn FROM stage_batch2_settlements) WHERE rn=1) s ON t.payment_id=s.payment_id\n            WHEN MATCHED AND s.version>t.version THEN UPDATE SET version=s.version, operation=s.operation, amount_cents=s.amount_cents\n            WHEN NOT MATCHED THEN INSERT (payment_id,version,operation,amount_cents) VALUES (s.payment_id,s.version,s.operation,s.amount_cents)",
+      "bytes_scanned": 25476,
+      "engine_ms": 2653
+    },
+    {
+      "query_number": 31,
+      "status": "SUCCEEDED",
+      "sql": "SELECT status, COUNT(*) AS records, SUM(COALESCE(expected_cents,0)) AS expected_cents, SUM(COALESCE(settled_cents,0)) AS settled_cents, SUM(variance_cents) AS variance_cents FROM reconciliation GROUP BY status ORDER BY status",
+      "bytes_scanned": 131058,
+      "engine_ms": 2095
+    }
+  ]
+}

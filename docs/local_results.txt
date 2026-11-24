@@ -1,0 +1,142 @@
+test_baseline (test_pipeline.PipelineTests.test_baseline) ... ok
+test_batch_immutability (test_pipeline.PipelineTests.test_batch_immutability) ... ok
+test_conflict_inside_batch (test_pipeline.PipelineTests.test_conflict_inside_batch) ... ok
+test_conflicting_same_version (test_pipeline.PipelineTests.test_conflicting_same_version) ... ok
+test_incremental_and_replay (test_pipeline.PipelineTests.test_incremental_and_replay) ... ok
+test_late_batch_does_not_resurrect (test_pipeline.PipelineTests.test_late_batch_does_not_resurrect) ... ok
+test_rollback_and_recovery (test_pipeline.PipelineTests.test_rollback_and_recovery) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.911s
+
+OK
+batch1 {
+  "payments": {
+    "raw": 10000,
+    "invalid": 0,
+    "duplicates": 0,
+    "superseded_in_batch": 0,
+    "candidate_keys": 10000,
+    "changed_keys": 10000
+  },
+  "settlements": {
+    "raw": 10000,
+    "invalid": 0,
+    "duplicates": 0,
+    "superseded_in_batch": 0,
+    "candidate_keys": 10000,
+    "changed_keys": 10000
+  }
+}
+[
+  {
+    "status": "AMOUNT_MISMATCH",
+    "records": 10,
+    "expected_cents": 15735,
+    "settled_cents": 16735,
+    "variance_cents": 1000
+  },
+  {
+    "status": "MATCHED",
+    "records": 9980,
+    "expected_cents": 246930230,
+    "settled_cents": 246930230,
+    "variance_cents": 0
+  },
+  {
+    "status": "MISSING_SETTLEMENT",
+    "records": 10,
+    "expected_cents": 12035,
+    "settled_cents": 0,
+    "variance_cents": -12035
+  },
+  {
+    "status": "ORPHAN_SETTLEMENT",
+    "records": 10,
+    "expected_cents": 0,
+    "settled_cents": 5000,
+    "variance_cents": 5000
+  }
+]
+batch2 {
+  "payments": {
+    "raw": 124,
+    "invalid": 1,
+    "duplicates": 1,
+    "superseded_in_batch": 2,
+    "candidate_keys": 120,
+    "changed_keys": 120
+  },
+  "settlements": {
+    "raw": 123,
+    "invalid": 1,
+    "duplicates": 1,
+    "superseded_in_batch": 1,
+    "candidate_keys": 120,
+    "changed_keys": 120
+  }
+}
+[
+  {
+    "status": "AMOUNT_MISMATCH",
+    "records": 10,
+    "expected_cents": 77335,
+    "settled_cents": 82335,
+    "variance_cents": 5000
+  },
+  {
+    "status": "MATCHED",
+    "records": 9970,
+    "expected_cents": 246654895,
+    "settled_cents": 246654895,
+    "variance_cents": 0
+  },
+  {
+    "status": "ORPHAN_SETTLEMENT",
+    "records": 20,
+    "expected_cents": 0,
+    "settled_cents": 94735,
+    "variance_cents": 94735
+  }
+]
+batch2 {
+  "payments": {
+    "raw": 124,
+    "invalid": 1,
+    "duplicates": 1,
+    "superseded_in_batch": 2,
+    "candidate_keys": 120,
+    "changed_keys": 0
+  },
+  "settlements": {
+    "raw": 123,
+    "invalid": 1,
+    "duplicates": 1,
+    "superseded_in_batch": 1,
+    "candidate_keys": 120,
+    "changed_keys": 0
+  }
+}
+[
+  {
+    "status": "AMOUNT_MISMATCH",
+    "records": 10,
+    "expected_cents": 77335,
+    "settled_cents": 82335,
+    "variance_cents": 5000
+  },
+  {
+    "status": "MATCHED",
+    "records": 9970,
+    "expected_cents": 246654895,
+    "settled_cents": 246654895,
+    "variance_cents": 0
+  },
+  {
+    "status": "ORPHAN_SETTLEMENT",
+    "records": 20,
+    "expected_cents": 0,
+    "settled_cents": 94735,
+    "variance_cents": 94735
+  }
+]
